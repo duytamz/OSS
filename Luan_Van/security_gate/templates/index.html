@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supply Chain Guard Pro - Quét Mã</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --brand-primary: #4f46e5; --bg-body: #f8fafc; --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: #334155; }
+        .navbar-custom { background: rgba(79, 70, 229, 0.95) !important; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .saas-card { background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; box-shadow: var(--card-shadow); }
+        .drop-zone { border: 2px dashed #cbd5e1; border-radius: 1rem; padding: 4rem 2rem; text-align: center; cursor: pointer; transition: all 0.3s ease; background: #f8fafc; }
+        .drop-zone:hover { background-color: #f1f5f9; border-color: var(--brand-primary); }
+        .drop-zone i { font-size: 3.5rem; color: #94a3b8; transition: color 0.3s; }
+        .drop-zone:hover i { color: var(--brand-primary); transform: translateY(-5px); }
+        .score-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .score-box:hover { transform: translateY(-3px); box-shadow: var(--card-shadow); }
+        .score-box.main-score { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; border: none; }
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1055; }
+        .stepper-wrapper { display: flex; justify-content: space-between; position: relative; width: 100%; margin: 2rem 0; }
+        .stepper-item { position: relative; display: flex; flex-direction: column; align-items: center; flex: 1; transition: all 0.3s; z-index: 1; }
+        .stepper-item::before { content: ""; position: absolute; top: 20px; left: -50%; width: 100%; height: 4px; background-color: #e2e8f0; z-index: -1; }
+        .stepper-item:first-child::before { display: none; }
+        .step-counter { position: relative; width: 44px; height: 44px; border-radius: 50%; background-color: #f8fafc; border: 3px solid #cbd5e1; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #94a3b8; box-shadow: 0 0 0 4px #fff; transition: all 0.3s ease; }
+        .step-name { margin-top: 12px; font-size: 0.85rem; font-weight: 600; color: #64748b; text-align: center; max-width: 120px; line-height: 1.3;}
+        .stepper-item.active .step-counter { border-color: var(--brand-primary); background-color: #fff; color: var(--brand-primary); box-shadow: 0 0 0 5px rgba(79, 70, 229, 0.15); }
+        .stepper-item.completed .step-counter { background-color: #10b981; border-color: #10b981; color: white; }
+        .stepper-item.completed::before { background-color: #10b981; }
+        .navbar-nav .nav-link.active { border-bottom: 2px solid white; padding-bottom: 6px; }
+    </style>
+</head>
+<body data-logged-in="{% if user %}true{% else %}false{% endif %}" data-project-id="{% if project %}{{ project.id }}{% else %}null{% endif %}">
+    
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm sticky-top">
+        <div class="container-lg">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
+                <div class="bg-white rounded-circle p-1 me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-shield-halved text-primary fs-6"></i>
+                </div>
+                GuardPro
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMenu">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-2">
+                    <li class="nav-item"><a class="nav-link active fw-medium" href="/project/{{ project.id }}"><i class="fa-solid fa-house me-1"></i> Quét mã</a></li>
+                    <li class="nav-item"><a class="nav-link fw-medium" href="/management"><i class="fa-solid fa-folder-tree me-1"></i> Workspace</a></li>
+                    {% if project %}
+                    <li class="nav-item"><a class="nav-link fw-medium" href="/project/{{ project.id }}/history"><i class="fa-solid fa-clock-rotate-left me-1"></i> Lịch sử</a></li>
+                    {% endif %}
+                </ul>
+                <div class="d-flex gap-2">
+                    {% if user %}
+                        <span class="text-white me-3 small align-self-center d-none d-md-inline">Xin chào, <strong>{{ user.full_name or user.email }}</strong></span>
+                        <a href="/logout" class="btn btn-danger btn-sm px-4 fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-power-off me-1"></i> Đăng xuất</a>
+                    {% else %}
+                        <a href="/login" class="btn btn-outline-light btn-sm px-4 fw-bold rounded-pill">Đăng nhập</a>
+                        <a href="/register" class="btn btn-light btn-sm px-4 fw-bold rounded-pill" style="color: var(--brand-primary);">Đăng ký</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-lg mt-4 mb-5" style="max-width: 1000px;">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb small fw-medium">
+                <li class="breadcrumb-item"><a href="/management" class="text-decoration-none text-muted">Workspace</a></li>
+                {% if project %}
+                <li class="breadcrumb-item text-primary fw-bold" aria-current="page">{{ project.name }}</li>
+                {% else %}
+                <li class="breadcrumb-item text-muted" aria-current="page">Chưa chọn dự án</li>
+                {% endif %}
+            </ol>
+        </nav>
+
+        <div class="saas-card mb-4">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+                    <div>
+                        <h2 class="h4 fw-bold text-dark mb-1">Engine Kiểm toán Chuỗi Cung Ứng</h2>
+                        <p class="text-muted small mb-0">Tiêu chuẩn định lượng: OWASP ASVS 5.0.0 & SLSA Framework</p>
+                    </div>
+                    <i class="fa-solid fa-microchip fs-2 text-primary opacity-25"></i>
+                </div>
+                
+                <div id="drop-zone" class="drop-zone">
+                    <i class="fa-solid fa-cloud-arrow-up mb-3"></i>
+                    <h5 class="fw-bold text-dark mb-2">Tải Artifact lên hệ thống</h5>
+                    <p class="text-muted small mb-0">Hỗ trợ tải lên nhiều file cùng lúc. Định dạng: <strong>.zip, .jar, .whl, .tar.gz, .rar</strong></p>
+                    <input type="file" id="file-upload" class="d-none" accept=".zip,.jar,.whl,.tar.gz,.tgz,.tar,.rar" multiple>
+                </div>
+
+                <div id="loading" class="d-none mt-5 mb-4">
+                    <div class="text-center mb-5">
+                        <h5 id="loading-text" class="fw-bold text-dark">Hệ thống đang tiến hành phân tích sâu...</h5>
+                        <p class="text-muted small">Quá trình này có thể mất vài giây tùy dung lượng và số lượng file.</p>
+                    </div>
+                    
+                    <div class="stepper-wrapper px-md-4">
+                        <div class="stepper-item" id="stepper-item-1"><div class="step-counter" id="step-counter-1">1</div><div class="step-name">Đẩy lên Gate</div></div>
+                        <div class="stepper-item" id="stepper-item-2"><div class="step-counter" id="step-counter-2">2</div><div class="step-name">Trích xuất SBOM</div></div>
+                        <div class="stepper-item" id="stepper-item-3"><div class="step-counter" id="step-counter-3">3</div><div class="step-name">Tính toán Rủi ro</div></div>
+                        <div class="stepper-item" id="stepper-item-4"><div class="step-counter" id="step-counter-4">4</div><div class="step-name">Lưu Quyết định</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-container"></div>
+
+        <template id="result-card-template">
+            <div class="saas-card mb-5 overflow-hidden result-card-instance shadow-sm" style="border-color: var(--brand-primary);">
+                <div class="bg-light p-4 border-bottom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="h5 fw-bold text-dark mb-1"><i class="fa-solid fa-file-code me-2 text-primary"></i> <span class="res-filename"></span></h3>
+                        <p class="small text-muted font-monospace mb-0">SHA256: <span class="res-hash"></span></p>
+                    </div>
+                    <div class="res-badge"></div>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <div class="row align-items-center">
+                        <div class="col-md-6 mb-4 mb-md-0 pe-md-4">
+                            <h5 class="fw-bold mb-4 text-dark">Chi tiết Rủi ro (Risk Breakdown)</h5>
+                            <div class="row row-cols-2 g-3">
+                                <div class="col-12"><div class="score-box main-score p-4 text-center d-flex justify-content-between align-items-center"><div class="text-start"><div class="small text-white-50 fw-bold">Điểm Tổng thể (R)</div></div><div class="display-5 fw-bold res-r"></div></div></div>
+                                <div class="col"><div class="score-box p-3"><div class="small text-muted fw-bold mb-2"><i class="fa-solid fa-bug text-danger me-1"></i> Lỗ hổng (CV)</div><div class="fs-3 fw-bold res-cv"></div></div></div>
+                                <div class="col"><div class="score-box p-3"><div class="small text-muted fw-bold mb-2"><i class="fa-solid fa-heart-pulse text-success me-1"></i> Sức khỏe (CM)</div><div class="fs-3 fw-bold res-cm"></div></div></div>
+                                <div class="col"><div class="score-box p-3"><div class="small text-muted fw-bold mb-2"><i class="fa-solid fa-shield text-primary me-1"></i> Toàn vẹn (CI)</div><div class="fs-3 fw-bold res-ci"></div></div></div>
+                                <div class="col"><div class="score-box p-3"><div class="small text-muted fw-bold mb-2"><i class="fa-solid fa-scale-balanced text-warning me-1"></i> Pháp lý (CL)</div><div class="fs-3 fw-bold res-cl"></div></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center border-start ps-md-4">
+                            <h6 class="fw-bold text-muted mb-3 text-uppercase small">Phân bố rủi ro đa chiều</h6>
+                            <div style="position: relative; height: 320px; width: 100%;"><canvas class="radarChartCanvas"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="mt-5 pt-4 border-top d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <span class="text-muted fw-medium small"><i class="fa-solid fa-circle-check me-1 text-success"></i> Phân tích hoàn tất</span>
+                        <div class="dropdown">
+                    <button class="btn btn-outline-primary fw-bold rounded-pill px-4 dropdown-toggle action-btn shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa-solid fa-download me-1"></i> Tải báo cáo
+                    </button>
+                    <ul class="dropdown-menu shadow border-0 mt-2" style="border-radius: 0.75rem;">
+                        <li><a class="dropdown-item fw-medium py-2 btn-export-pdf" href="#"><i class="fa-solid fa-file-pdf text-danger me-2"></i> Định dạng PDF (.pdf)</a></li>
+                        <li><a class="dropdown-item fw-medium py-2 btn-export-word" href="#"><i class="fa-solid fa-file-word text-primary me-2"></i> Định dạng Word (.docx)</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item fw-medium py-2 btn-export-excel" href="#"><i class="fa-solid fa-file-excel text-success me-2"></i> Định dạng Excel (.xlsx)</a></li>
+                    </ul>
+                </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </main>
+
+    <div class="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const isLoggedIn = document.body.dataset.loggedIn === 'true';
+        const currentProjectId = document.body.dataset.projectId !== 'null' ? parseInt(document.body.dataset.projectId) : null;
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-upload');
+        const loading = document.getElementById('loading');
+        const loadingText = document.getElementById('loading-text');
+        const resultsContainer = document.getElementById('results-container');
+        
+        let chartInstances = [];
+
+        function showToast(message, type = 'danger') {
+            const container = document.querySelector('.toast-container');
+            const icon = type === 'success' ? 'fa-check-circle' : (type === 'danger' ? 'fa-circle-xmark' : 'fa-circle-info');
+            const toastId = 'toast-' + Date.now();
+            
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-bg-${type} border-0 shadow-lg mb-2" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body fw-medium"><i class="fa-solid ${icon} me-2"></i> ${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>`;
+            
+            container.insertAdjacentHTML('beforeend', toastHtml);
+            const toastElement = document.getElementById(toastId);
+            const bsToast = new bootstrap.Toast(toastElement, { delay: 4000 });
+            bsToast.show();
+            toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
+        }
+
+        dropZone.addEventListener('click', () => {
+            if (!isLoggedIn) { window.location.href = "/login"; return; }
+            if (!currentProjectId) {
+                showToast("Vui lòng truy cập Workspace và chọn một Dự án để bắt đầu!", "warning");
+                setTimeout(() => window.location.href = "/management", 1500);
+                return;
+            }
+            fileInput.click();
+        });
+
+        function updateStep(stepNumber, status) {
+            const item = document.getElementById(`stepper-item-${stepNumber}`);
+            const counter = document.getElementById(`step-counter-${stepNumber}`);
+            
+            if (status === 'active') {
+                item.className = "stepper-item active";
+                counter.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+            } else if (status === 'done') {
+                item.className = "stepper-item completed";
+                counter.innerHTML = `<i class="fa-solid fa-check"></i>`;
+            } else {
+                item.className = "stepper-item";
+                counter.innerHTML = stepNumber;
+            }
+        }
+
+        function renderRadarChart(canvasElement, cv, cm, ci, cl) {
+            return new Chart(canvasElement, {
+                type: 'radar',
+                data: {
+                    labels: ['Lỗ hổng (CV)', 'Sức khỏe (CM)', 'Toàn vẹn (CI)', 'Pháp lý (CL)'],
+                    datasets: [{
+                        label: 'Mức Rủi Ro',
+                        data: [cv, cm, ci, cl],
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                        borderColor: 'rgba(79, 70, 229, 1)',
+                        pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                        pointBorderColor: '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { r: { min: 0, max: 10, ticks: { stepSize: 2 } } }
+                }
+            });
+        }
+
+        function buildResultCard(data, index) {
+            const template = document.getElementById('result-card-template');
+            const clone = template.content.cloneNode(true);
+            
+            clone.querySelector('.res-filename').textContent = data.artifact_name;
+            clone.querySelector('.res-hash').textContent = data.hash_sha256 ? data.hash_sha256.substring(0, 15) + '...' : 'Không xác định';
+            clone.querySelector('.res-r').textContent = parseFloat(data.final_score).toFixed(2);
+            clone.querySelector('.res-cv').textContent = data.scores.CV;
+            clone.querySelector('.res-cm').textContent = data.scores.CM;
+            clone.querySelector('.res-ci').textContent = data.scores.CI;
+            clone.querySelector('.res-cl').textContent = data.scores.CL;
+
+            const badge = clone.querySelector('.res-badge');
+            if (data.decision === 'APPROVED') {
+                badge.innerHTML = '<span class="badge rounded-pill bg-success-subtle text-success px-4 py-2 fs-6 border border-success"><i class="fa-solid fa-check-circle me-1"></i> TIN DÙNG</span>';
+            } else if (data.decision === 'PENDING_REVIEW') {
+                badge.innerHTML = '<span class="badge rounded-pill bg-warning text-dark px-4 py-2 fs-6 border border-warning"><i class="fa-solid fa-user-shield me-1"></i> CHỜ DUYỆT (ĐIỂM MÙ MẠNG)</span>';
+            } else if (data.decision === 'PENDING') {
+                badge.innerHTML = '<span class="badge rounded-pill bg-warning-subtle text-warning-emphasis px-4 py-2 fs-6 border border-warning"><i class="fa-solid fa-triangle-exclamation me-1"></i> CẢNH BÁO</span>';
+            } else {
+                badge.innerHTML = '<span class="badge rounded-pill bg-danger-subtle text-danger px-4 py-2 fs-6 border border-danger"><i class="fa-solid fa-shield-virus me-1"></i> TỪ CHỐI</span>';
+            }
+
+            clone.querySelector('.btn-export-pdf').href = `/api/v1/export/${data.report_id}?format=pdf`;
+            clone.querySelector('.btn-export-word').href = `/api/v1/export/${data.report_id}?format=word`;
+            clone.querySelector('.btn-export-excel').href = `/api/v1/export/${data.report_id}?format=excel`;
+
+            const canvas = clone.querySelector('.radarChartCanvas');
+            canvas.id = `radarChart-${index}`;
+            
+            resultsContainer.appendChild(clone);
+
+            const ctx = document.getElementById(`radarChart-${index}`);
+            chartInstances.push(renderRadarChart(ctx, data.scores.CV, data.scores.CM, data.scores.CI, data.scores.CL));
+        }
+
+        const handleFileUpload = async (event) => {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+
+            chartInstances.forEach(chart => chart.destroy());
+            chartInstances = [];
+            resultsContainer.innerHTML = '';
+
+            dropZone.classList.add('d-none');
+            loading.classList.remove('d-none');
+
+            loadingText.innerText = files.length === 1 ? 
+                "Hệ thống đang tiến hành phân tích sâu..." : 
+                `Hệ thống đang phân tích đồng thời ${files.length} mã nguồn...`;
+
+            for(let i=1; i<=4; i++) updateStep(i, 'pending');
+            updateStep(1, 'active');
+
+            const t1 = setTimeout(() => { updateStep(1, 'done'); updateStep(2, 'active'); }, 1000);
+            const t2 = setTimeout(() => { updateStep(2, 'done'); updateStep(3, 'active'); }, 3000);
+            const t3 = setTimeout(() => { updateStep(3, 'done'); updateStep(4, 'active'); }, 5000);
+
+            try {
+                const uploadPromises = files.map(file => {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("project_id", currentProjectId);
+                    
+                    return fetch('/api/v1/scan', { method: 'POST', body: formData }).then(async res => {
+                        if (!res.ok) {
+                            if (res.status === 401) window.location.href = "/login";
+                            throw new Error(`Mã lỗi HTTP ${res.status}: Quét thất bại cho ${file.name}`);
+                        }
+                        return res.json();
+                    });
+                });
+
+                const results = await Promise.all(uploadPromises);
+                
+                clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+                for(let i=1; i<=4; i++) updateStep(i, 'done');
+
+                setTimeout(() => {
+                    results.forEach((data, index) => buildResultCard(data, index));
+
+                    loading.classList.add('d-none');
+                    dropZone.classList.remove('d-none');
+                    showToast(`Tuyệt vời! Đã phân tích thành công ${results.length} Artifact.`, "success");
+                    
+                    resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 800);
+
+            } catch (error) {
+                console.error("Lỗi Upload:", error);
+                showToast(error.message || "Quá trình kiểm toán thất bại. Hãy kiểm tra lại kết nối.", "danger");
+                
+                clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+                loading.classList.add('d-none');
+                dropZone.classList.remove('d-none');
+            }
+            
+            fileInput.value = '';
+        };
+
+        fileInput.addEventListener('change', handleFileUpload);
+    </script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workspace - Supply Chain Guard Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --brand-primary: #4f46e5;
+            --brand-secondary: #4338ca;
+            --bg-body: #f8fafc;
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        }
+        
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: #334155; }
+        
+        .navbar-custom { background: rgba(79, 70, 229, 0.95) !important; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .saas-card { background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; box-shadow: var(--card-shadow); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        
+        /* Hiệu ứng Hover cho thẻ Dự án */
+        .project-card { cursor: pointer; text-decoration: none; color: inherit; display: block; }
+        .project-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border-color: #cbd5e1; }
+        .project-card:hover .icon-folder { color: var(--brand-primary) !important; }
+        .project-card:hover .btn-open { background-color: var(--brand-primary); color: white !important; }
+        
+        /* Nút Delete (Thùng rác) */
+        .btn-delete-project { position: absolute; top: 1rem; right: 1rem; opacity: 0; transition: opacity 0.2s ease, color 0.2s ease; z-index: 10; }
+        .project-card:hover .btn-delete-project { opacity: 1; }
+        .btn-delete-project:hover { color: #dc3545 !important; }
+
+        /* Modal Custom */
+        .modal-content { border-radius: 1.25rem; border: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .modal-header { border-bottom: 1px solid #f1f5f9; padding: 1.5rem 1.5rem 1rem; }
+        .modal-footer { border-top: 1px solid #f1f5f9; padding: 1rem 1.5rem 1.5rem; }
+        .form-control:focus { border-color: var(--brand-primary); box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25); }
+        
+        /* Highlight menu active */
+        .navbar-nav .nav-link.active { border-bottom: 2px solid white; padding-bottom: 6px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm sticky-top">
+        <div class="container-lg">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
+                <div class="bg-white rounded-circle p-1 me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-shield-halved text-primary fs-6"></i>
+                </div>
+                GuardPro
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMenu">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-2">
+                    <li class="nav-item">
+                        <a class="nav-link fw-medium" href="/"><i class="fa-solid fa-house me-1"></i> Quét mã</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active fw-medium" href="/management"><i class="fa-solid fa-folder-tree me-1"></i> Workspace</a>
+                    </li>
+                </ul>
+                <div class="d-flex gap-2">
+                    {% if user %}
+                        <span class="text-white me-3 small align-self-center d-none d-md-inline">Xin chào, <strong>{{ user.full_name or user.email }}</strong></span>
+                        <a href="/logout" class="btn btn-danger btn-sm px-4 fw-bold rounded-pill shadow-sm">
+                            <i class="fa-solid fa-power-off me-1"></i> Đăng xuất
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-lg mt-5 mb-5" style="max-width: 1100px;">
+        
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+            <div>
+                <h2 class="h3 fw-bold text-dark mb-1">Workspace Tổ chức</h2>
+                <p class="text-muted small mb-0">Quản lý và giám sát rủi ro bảo mật của các ứng dụng</p>
+            </div>
+            <button class="btn text-white fw-bold rounded-pill px-4 py-2 shadow-sm d-flex align-items-center" style="background-color: var(--brand-primary);" data-bs-toggle="modal" data-bs-target="#createProjectModal">
+                <i class="fa-solid fa-plus me-2"></i> Khởi tạo Dự án mới
+            </button>
+        </div>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            
+            {% for project in projects %}
+            <div class="col">
+                <div class="saas-card project-card h-100 position-relative d-flex flex-column">
+                    
+                    {% if user.role == 'admin' or project.owner_id == user.id %}
+                    <form action="/delete_project/{{ project.id }}" method="POST" class="btn-delete-project m-0" onsubmit="return confirm('Cảnh báo: Bạn có chắc chắn muốn xóa dự án [{{ project.name }}]?');" style="top: 15px; right: 15px;">
+                        <button type="submit" class="btn btn-sm btn-light text-danger rounded-circle shadow-sm d-flex align-items-center justify-content-center border" style="width: 35px; height: 35px;" onclick="event.stopPropagation();" title="Xóa dự án">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <div class="card-body p-4 flex-grow-1" onclick="window.location.href='/project/{{ project.id }}'">
+                        
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary bg-opacity-10 rounded p-3 me-3 text-primary d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                <i class="fa-solid fa-folder-open fs-4"></i>
+                            </div>
+                            <div>
+                                <h3 class="h5 fw-bold text-dark mb-1 text-truncate" style="max-width: 200px;" title="{{ project.name }}">{{ project.name }}</h3>
+                                <div class="small text-muted d-flex align-items-center">
+                                    <i class="fa-regular fa-clock me-1"></i> {{ project.created_at.strftime('%d/%m/%Y') }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 me-1"><i class="fa-solid fa-circle-check me-1"></i> Đang hoạt động</span>
+                        </div>
+
+                        <p class="text-muted small mb-3" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                            {{ project.description or 'Dự án đánh giá an toàn chuỗi cung ứng theo tiêu chuẩn OWASP ASVS 5.0.0.' }}
+                        </p>
+                        
+                        <div class="border-top pt-3 mt-auto">
+                            <div class="d-flex align-items-center small text-secondary">
+                                <i class="fa-solid fa-user-tie me-2"></i>
+                                <span>Phụ trách: <strong>{{ project.owner.full_name }}</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer bg-transparent border-top-0 px-4 pb-4 pt-0">
+                        <a href="/project/{{ project.id }}" class="btn btn-primary w-100 rounded-pill fw-medium shadow-sm d-flex justify-content-center align-items-center gap-2" style="background-color: var(--brand-primary); border: none;">
+                            Mở Security Gate <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 w-100 mt-5">
+                <div class="saas-card p-5 text-center bg-transparent border-dashed" style="border: 2px dashed #cbd5e1;">
+                    <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm mb-4" style="width: 80px; height: 80px;">
+                        <i class="fa-solid fa-layer-group fs-1 text-primary opacity-75"></i>
+                    </div>
+                    <h3 class="h4 fw-bold text-dark mb-2">Chưa có dự án nào</h3>
+                    <p class="text-muted mb-4 mx-auto" style="max-width: 500px;">Không gian làm việc của bạn đang trống. Hãy khởi tạo dự án đầu tiên để bắt đầu quét các thành phần mã nguồn mở và đánh giá rủi ro an ninh chuỗi cung ứng.</p>
+                    <button class="btn text-white fw-bold rounded-pill px-4 py-2 shadow-sm" style="background-color: var(--brand-primary);" data-bs-toggle="modal" data-bs-target="#createProjectModal">
+                        <i class="fa-solid fa-plus me-2"></i> Khởi tạo Dự án mới
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+
+        </div>
+    </main>
+
+    <div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold text-dark" id="createProjectModalLabel">
+                        <i class="fa-solid fa-folder-plus text-primary me-2"></i>Khởi tạo Dự án
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="/create_project" method="POST">
+                    <div class="modal-body px-4 py-4">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Tên dự án <span class="text-danger">*</span></label>
+                            <input type="text" name="project_name" class="form-control form-control-lg bg-light fs-6" placeholder="Ví dụ: Backend API Payment, Frontend Portal..." required autocomplete="off">
+                            <div class="form-text mt-2 text-muted">Tên dự án nên ngắn gọn và phản ánh đúng thành phần mã nguồn bạn định quét.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light rounded-bottom-4">
+                        <button type="button" class="btn btn-link text-muted text-decoration-none fw-medium" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" class="btn text-white rounded-pill px-4 fw-bold shadow-sm" style="background-color: var(--brand-primary);">
+                            <i class="fa-solid fa-check me-1"></i> Xác nhận tạo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

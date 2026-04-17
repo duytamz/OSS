@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử Kiểm toán - Guard Pro</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root { 
+            --brand-primary: #4f46e5; 
+            --brand-secondary: #4338ca;
+            --bg-body: #f8fafc; 
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025); 
+        }
+        
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: #334155; }
+        
+        .navbar-custom { background: rgba(79, 70, 229, 0.95) !important; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .navbar-nav .nav-link.active { border-bottom: 2px solid white; padding-bottom: 6px; }
+        
+        .saas-card { background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; box-shadow: var(--card-shadow); }
+        .score-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .score-box.main-score { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; border: none; }
+        
+        .empty-state-icon { transition: transform 0.3s ease; }
+        .empty-state-box:hover .empty-state-icon { transform: scale(1.1) translateY(-5px); color: var(--brand-primary) !important; }
+        
+        /* Chỉnh chu lại bảng dữ liệu */
+        .table-hover tbody tr:hover { background-color: #f8fafc; transition: all 0.2s ease; }
+        .action-btn { transition: all 0.2s ease; }
+        .action-btn:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body data-logged-in="{% if user %}true{% else %}false{% endif %}">
+    
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm sticky-top">
+        <div class="container-lg">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
+                <div class="bg-white rounded-circle p-1 me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-shield-halved text-primary fs-6"></i>
+                </div>
+                GuardPro
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMenu">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-2">
+                    <li class="nav-item">
+                        <a class="nav-link fw-medium" href="/project/{{ project.id }}"><i class="fa-solid fa-house me-1"></i> Quét mã</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-medium" href="/management"><i class="fa-solid fa-folder-tree me-1"></i> Workspace</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active fw-medium" href="/project/{{ project.id }}/history"><i class="fa-solid fa-clock-rotate-left me-1"></i> Lịch sử</a>
+                    </li>
+                </ul>
+                <div class="d-flex gap-2">
+                    {% if user %}
+                        <span class="text-white me-3 small align-self-center d-none d-md-inline">Xin chào, <strong>{{ user.full_name or user.email }}</strong></span>
+                        <a href="/logout" class="btn btn-danger btn-sm px-4 fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-power-off me-1"></i> Đăng xuất</a>
+                    {% else %}
+                        <a href="/login" class="btn btn-outline-light btn-sm px-4 fw-bold rounded-pill">Đăng nhập</a>
+                        <a href="/register" class="btn btn-light btn-sm px-4 fw-bold rounded-pill" style="color: var(--brand-primary);">Đăng ký</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-lg mt-4 mb-5" style="max-width: 1100px;">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb small fw-medium">
+                <li class="breadcrumb-item"><a href="/management" class="text-decoration-none text-muted">Workspace</a></li>
+                <li class="breadcrumb-item"><a href="/project/{{ project.id }}" class="text-decoration-none text-muted">{{ project.name }}</a></li>
+                <li class="breadcrumb-item text-primary fw-bold" aria-current="page">Lịch sử Audit</li>
+            </ol>
+        </nav>
+
+        <div id="results-container"></div>
+
+        <div class="saas-card mt-4 mb-5">
+            <div class="card-header bg-white p-4 border-bottom d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Nhật ký Kiểm toán Mã nguồn</h5>
+                    <p class="small text-muted mb-0">Quản lý các phiên phân tích bảo mật của dự án</p>
+                </div>
+                <span class="badge bg-light text-muted border px-3 py-2 shadow-sm fs-6">Tổng số: {{ scan_history|length }} bản ghi</span>
+            </div>
+            
+            {% if scan_history %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-4 py-3">Tên Artifact</th>
+                            <th class="py-3">Thời gian quét</th>
+                            <th class="py-3 text-center">Điểm rủi ro (R)</th>
+                            <th class="py-3">Trạng thái</th>
+                            <th class="text-end pe-4 py-3">Thao tác quản trị</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in scan_history %}
+                        <tr>
+                            <td class="ps-4 fw-medium text-dark">
+                                <i class="fa-solid fa-file-zipper text-secondary me-2"></i>{{ report.artifact_name }}
+                                <div class="small text-muted font-monospace mt-1" style="font-size: 0.75rem;">SHA256: {{ report.hash_sha256[:12] }}...</div>
+                            </td>
+                            <td class="small text-muted fw-medium">{{ report.scan_date.strftime('%d/%m/%Y - %H:%M') }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark border px-2 py-1 fs-6">{{ report.final_score }}</span>
+                            </td>
+                            <td>
+                                {% if report.decision == 'APPROVED' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-check me-1"></i> TIN DÙNG</span>
+                                {% elif report.decision == 'PENDING_REVIEW' %}
+                                    <span class="badge bg-warning text-dark border border-warning px-2 py-1" title="Bị trừ điểm do mất mạng"><i class="fa-solid fa-user-shield me-1"></i> CHỜ DUYỆT</span>
+                                {% elif report.decision == 'PENDING' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> CẢNH BÁO</span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="fa-solid fa-ban me-1"></i> TỪ CHỐI</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td class="text-end pe-4">
+                                <div class="d-flex justify-content-end gap-2">
+                                    
+                                    <div class="btn-group shadow-sm" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-info action-btn"
+                                                data-id="{{ report.id }}" data-artifact="{{ report.artifact_name }}" data-hash="{{ report.hash_sha256 }}"
+                                                data-score="{{ report.final_score }}" data-decision="{{ report.decision }}" 
+                                                data-cv="{{ report.score_cv }}" data-cm="{{ report.score_cm }}" 
+                                                data-ci="{{ report.score_ci }}" data-cl="{{ report.score_cl }}"
+                                                onclick="viewHistoryDetail(this)" title="Xem Biểu đồ chi tiết">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                        
+                                        <a href="/api/v1/export/{{ report.id }}?format=pdf" class="btn btn-sm btn-outline-danger action-btn" title="Xuất PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                                        <a href="/api/v1/export/{{ report.id }}?format=word" class="btn btn-sm btn-outline-primary action-btn" title="Xuất Word"><i class="fa-solid fa-file-word"></i></a>
+                                        <a href="/api/v1/export/{{ report.id }}?format=excel" class="btn btn-sm btn-outline-success action-btn" title="Xuất Excel"><i class="fa-solid fa-file-excel"></i></a>
+                                    </div>
+                                    
+                                    <form action="/delete_report/{{ report.id }}" method="POST" class="m-0" onsubmit="return confirm('Cảnh báo:\nBạn có chắc chắn muốn xóa vĩnh viễn kết quả kiểm toán này?\nHành động này không thể hoàn tác.');">
+                                        <button type="submit" class="btn btn-sm btn-light border text-danger shadow-sm action-btn" title="Xóa bản ghi"><i class="fa-solid fa-trash-can"></i></button>
+                                    </form>
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% else %}
+            <div class="p-5 text-center bg-transparent border-dashed rounded-bottom-4 empty-state-box" style="border: 2px dashed #e2e8f0; border-top: none;">
+                <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm mb-4" style="width: 80px; height: 80px;">
+                    <i class="fa-solid fa-box-open fs-1 text-secondary opacity-50 empty-state-icon"></i>
+                </div>
+                <h3 class="h5 fw-bold text-dark mb-2">Chưa có lịch sử quét mã</h3>
+                <p class="text-muted mb-4 mx-auto small" style="max-width: 450px;">
+                    Dự án này chưa ghi nhận bất kỳ phiên phân tích nào. Mọi kết quả chấm điểm rủi ro và biểu đồ ASVS 5.0.0 sẽ được tự động lưu trữ tại đây sau khi bạn quét mã nguồn.
+                </p>
+                <a href="/project/{{ project.id }}" class="btn text-white fw-bold rounded-pill px-4 py-2 shadow-sm" style="background-color: var(--brand-primary);">
+                    <i class="fa-solid fa-microchip me-2"></i> Tiến hành Quét mã ngay
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <template id="result-card-template">
+            <div class="saas-card mb-5 overflow-hidden result-card-instance shadow border-primary" style="animation: fadeIn 0.5s;">
+                <div class="bg-light p-4 border-bottom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="h5 fw-bold text-dark mb-1"><i class="fa-solid fa-chart-pie me-2 text-primary"></i> Phân tích: <span class="res-filename"></span></h3>
+                        <p class="small text-muted font-monospace mb-0">Mã băm (SHA256): <span class="res-hash"></span></p>
+                    </div>
+                    <div class="res-badge"></div>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <div class="row align-items-center">
+                        <div class="col-md-6 mb-4 mb-md-0 pe-md-4">
+                            <h5 class="fw-bold mb-4 text-dark">Phân rã Rủi ro theo Tiêu chuẩn</h5>
+                            <div class="row row-cols-2 g-3">
+                                <div class="col-12">
+                                    <div class="score-box main-score p-4 text-center d-flex justify-content-between align-items-center">
+                                        <div class="text-start">
+                                            <div class="small text-white-50 fw-bold text-uppercase">Điểm Tổng thể (R)</div>
+                                        </div>
+                                        <div class="display-5 fw-bold res-r"></div>
+                                    </div>
+                                </div>
+                                <div class="col"><div class="score-box p-3"><div class="small text-muted fw-bold mb-2"><i class="fa-solid fa-bug text-danger me-1"></i> Lỗ hổng (CV)</div><div class="fs-3 fw-bold res-cv"></div></div></div>
+                                <div class="col"><div class="score-box p-3"><div class="small text-muted fw-bold mb-2"><i class="fa-solid fa-heart-pulse text-success me-1"></i> Sức khỏe (CM)</div><div class="fs-3 fw-bold res-cm"></div></div></div>
+                                <div class="col"><div class="score-box p-3"><div class="small text-muted fw-bold mb-2"><i class="fa-solid fa-shield text-primary me-1"></i> Toàn vẹn (CI)</div><div class="fs-3 fw-bold res-ci"></div></div></div>
+                                <div class="col"><div class="score-box p-3"><div class="small text-muted fw-bold mb-2"><i class="fa-solid fa-scale-balanced text-warning me-1"></i> Pháp lý (CL)</div><div class="fs-3 fw-bold res-cl"></div></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center border-start ps-md-4">
+                            <div style="position: relative; height: 320px; width: 100%;">
+                                <canvas class="radarChartCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-top d-flex justify-content-between align-items-center">
+                        <small class="text-muted"><i class="fa-solid fa-database me-1"></i> Dữ liệu được trích xuất từ CSDL</small>
+                        <button class="btn btn-light border fw-medium rounded-pill px-4 action-btn" onclick="closeDetailView()">
+                            <i class="fa-solid fa-compress me-1"></i> Đóng chi tiết
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </main>
+
+    <style> @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } } </style>
+
+    <script>
+        const resultsContainer = document.getElementById('results-container');
+        let chartInstances = [];
+
+        function renderRadarChart(canvasElement, cv, cm, ci, cl) {
+            return new Chart(canvasElement, {
+                type: 'radar',
+                data: {
+                    labels: ['Lỗ hổng (CV)', 'Sức khỏe (CM)', 'Toàn vẹn (CI)', 'Pháp lý (CL)'],
+                    datasets: [{ 
+                        label: 'Mức Rủi Ro theo ASVS', 
+                        data: [cv, cm, ci, cl], 
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)', 
+                        borderColor: 'rgba(79, 70, 229, 1)',
+                        pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                        pointBorderColor: '#fff',
+                        borderWidth: 2 
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { r: { min: 0, max: 10, ticks: { stepSize: 2 } } } 
+                }
+            });
+        }
+
+        function viewHistoryDetail(button) {
+            resultsContainer.innerHTML = '';
+            chartInstances.forEach(chart => chart.destroy());
+            chartInstances = [];
+
+            const template = document.getElementById('result-card-template');
+            const clone = template.content.cloneNode(true);
+            
+            clone.querySelector('.res-filename').textContent = button.dataset.artifact;
+            clone.querySelector('.res-hash').textContent = button.dataset.hash ? button.dataset.hash : 'N/A';
+            clone.querySelector('.res-r').textContent = parseFloat(button.dataset.score).toFixed(2);
+            clone.querySelector('.res-cv').textContent = button.dataset.cv;
+            clone.querySelector('.res-cm').textContent = button.dataset.cm;
+            clone.querySelector('.res-ci').textContent = button.dataset.ci;
+            clone.querySelector('.res-cl').textContent = button.dataset.cl;
+
+            const badge = clone.querySelector('.res-badge');
+            // Cập nhật giao diện: Thêm badge PENDING_REVIEW
+            if (button.dataset.decision === 'APPROVED') {
+                badge.innerHTML = '<span class="badge bg-success-subtle text-success px-4 py-2 border border-success fs-6"><i class="fa-solid fa-check-circle me-1"></i> TIN DÙNG</span>';
+            } else if (button.dataset.decision === 'PENDING_REVIEW') {
+                badge.innerHTML = '<span class="badge bg-warning text-dark px-4 py-2 border border-warning fs-6"><i class="fa-solid fa-user-shield me-1"></i> CHỜ DUYỆT (ĐIỂM MÙ MẠNG)</span>';
+            } else if (button.dataset.decision === 'PENDING') {
+                badge.innerHTML = '<span class="badge bg-warning-subtle text-warning-emphasis px-4 py-2 border border-warning fs-6"><i class="fa-solid fa-triangle-exclamation me-1"></i> CẢNH BÁO</span>';
+            } else {
+                badge.innerHTML = '<span class="badge bg-danger-subtle text-danger px-4 py-2 border border-danger fs-6"><i class="fa-solid fa-shield-virus me-1"></i> TỪ CHỐI</span>';
+            }
+
+            const canvas = clone.querySelector('.radarChartCanvas');
+            const chartId = `radarChart-${Date.now()}`;
+            canvas.id = chartId;
+            
+            resultsContainer.appendChild(clone);
+            
+            const ctx = document.getElementById(chartId);
+            chartInstances.push(renderRadarChart(ctx, button.dataset.cv, button.dataset.cm, button.dataset.ci, button.dataset.cl));
+            
+            resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closeDetailView() {
+            resultsContainer.innerHTML = '';
+            chartInstances.forEach(chart => chart.destroy());
+            chartInstances = [];
+        }
+    </script>
+</body>
+</html>

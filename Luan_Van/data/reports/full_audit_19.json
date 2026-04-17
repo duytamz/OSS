@@ -1,0 +1,24 @@
+{
+    "artifact": "juice-shop-19.2.1_node24_darwin_x64.zip",
+    "hash": "5a3c23e99429e5a9434ce60e3f120aed12794b36669232e35d7f44ca8d297f6b",
+    "final_score": 10.0,
+    "weakest_link": {
+        "name": "N/A",
+        "scores": {
+            "CV": 10.0,
+            "CM": 10.0,
+            "CI": 9.0,
+            "CL": 10.0
+        },
+        "r_score": 10.0
+    },
+    "project_integrity": {
+        "signed": false,
+        "virustotal_flags": 0,
+        "yara_alerts": 560,
+        "base_ci_score": 9.0,
+        "base_cm_score": 0.0
+    },
+    "total_components": 0,
+    "details": []
+}
